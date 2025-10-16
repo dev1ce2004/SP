@@ -3,128 +3,208 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct osoba {
-	char ime[50], prezime[50];
-	int godina_rodjenja;
-	struct osoba* next;
-} Osoba;
+#define MAX_LENGTH 50
+#define SUCCESS 0
+#define ERROR_MEMORY_ALLOCATION -1
+#define ERROR_NOT_FOUND -2
 
-Osoba* novaOsoba(char* ime, char* prezime, int godina) {
-	Osoba* nova = (Osoba*)malloc(sizeof(Osoba));
-	if (!nova) {
-		perror("Greska pri alokaciji memorije");
-		exit(EXIT_FAILURE);
-	}
-	strcpy(nova->ime, ime);
-	strcpy(nova->prezime, prezime);
-	nova->godina_rodjenja = godina;
-	nova->next = NULL;
-	return nova;
+struct _Person;
+typedef struct _Person* Position;
+
+typedef struct _Person {
+    char firstName[MAX_LENGTH];
+    char lastName[MAX_LENGTH];
+    int birthYear;
+    Position next;
+} Person;
+
+// Deklaracije funkcija
+int addToStart(Position* head, const char* firstName, const char* lastName, int birthYear);
+int addToEnd(Position* head, const char* firstName, const char* lastName, int birthYear);
+int printList(Position head);
+Position findByLastName(Position head, const char* lastName);
+int deletePerson(Position* head, const char* lastName);
+int freeList(Position* head);
+Position createPerson(const char* firstName, const char* lastName, int birthYear);
+
+// Funkcija za kreiranje nove osobe
+Position createPerson(const char* firstName, const char* lastName, int birthYear) {
+    Position newPerson = (Position)malloc(sizeof(Person));
+    if (!newPerson) return NULL;
+
+    strncpy(newPerson->firstName, firstName, MAX_LENGTH - 1);
+    newPerson->firstName[MAX_LENGTH - 1] = '\0';
+
+    strncpy(newPerson->lastName, lastName, MAX_LENGTH - 1);
+    newPerson->lastName[MAX_LENGTH - 1] = '\0';
+
+    newPerson->birthYear = birthYear;
+    newPerson->next = NULL;
+    return newPerson;
 }
 
-void dodajNaPocetak(Osoba** head, char* ime, char* prezime, int godina) {
-	Osoba* nova = novaOsoba(ime, prezime, godina);
-	nova->next = *head;
-	*head = nova;
+// Dodavanje osobe na početak liste
+int addToStart(Position* head, const char* firstName, const char* lastName, int birthYear) {
+    Position newPerson = createPerson(firstName, lastName, birthYear);
+    if (!newPerson) return ERROR_MEMORY_ALLOCATION;
+
+    newPerson->next = *head;
+    *head = newPerson;
+    return SUCCESS;
 }
 
-void ispisiListu(Osoba* head) {
-	for (Osoba* trenutna = head; trenutna; trenutna = trenutna->next) {
-		printf("\n\n%s %s %d\n\n", trenutna->ime, trenutna->prezime, trenutna->godina_rodjenja);
-	}
+// Dodavanje osobe na kraj liste
+int addToEnd(Position* head, const char* firstName, const char* lastName, int birthYear) {
+    Position newPerson = createPerson(firstName, lastName, birthYear);
+    if (!newPerson) return ERROR_MEMORY_ALLOCATION;
+
+    if (!*head) {
+        *head = newPerson;
+        return SUCCESS;
+    }
+
+    Position temp = *head;
+    while (temp->next) temp = temp->next;
+    temp->next = newPerson;
+    return SUCCESS;
 }
 
-void dodajNaKraj(Osoba** head, char* ime, char* prezime, int godina) {
-	Osoba* nova = novaOsoba(ime, prezime, godina);
-	if (!*head) {
-		*head = nova;
-	}
-	else {
-		Osoba* trenutna = *head;
-		while (trenutna->next) trenutna = trenutna->next;
-		trenutna->next = nova;
-	}
+// Ispis liste osoba
+int printList(Position head) {
+    if (!head) {
+        printf("\nLista je prazna.\n");
+        return 0;
+    }
+
+    printf("\n--- LISTA OSOBA ---\n");
+    Position temp = head;
+    while (temp) {
+        printf("%s %s, %d\n", temp->firstName, temp->lastName, temp->birthYear);
+        temp = temp->next;
+    }
+    printf("-------------------\n");
+    return 0;
 }
 
-Osoba* pronadjiPoPrezimenu(Osoba* head, char* prezime) {
-	for (Osoba* trenutna = head; trenutna; trenutna = trenutna->next) {
-		if (strcmp(trenutna->prezime, prezime) == 0) return trenutna;
-	}
-	return NULL;
+// Pronalazak osobe po prezimenu
+Position findByLastName(Position head, const char* lastName) {
+    Position temp = head;
+    while (temp) {
+        if (strcmp(temp->lastName, lastName) == 0) return temp;
+        temp = temp->next;
+    }
+    return NULL;
 }
 
-void brisiOsobu(Osoba** head, char* prezime) {
-	Osoba* trenutna = *head, * prethodna = NULL;
-	while (trenutna && strcmp(trenutna->prezime, prezime)) {
-		prethodna = trenutna;
-		trenutna = trenutna->next;
-	}
-	if (!trenutna) {
-		printf("Osoba s prezimenom %s nije pronađena\n", prezime);
-		return;
-	}
-	if (!prethodna) *head = trenutna->next;
-	else prethodna->next = trenutna->next;
-	free(trenutna);
-	printf("Osoba s prezimenom %s je izbrisana\n", prezime);
+// Brisanje osobe iz liste po prezimenu
+int deletePerson(Position* head, const char* lastName) {
+    if (!head || !*head) return ERROR_NOT_FOUND;
+
+    Position temp = *head;
+    Position previous = NULL;
+
+    while (temp && strcmp(temp->lastName, lastName) != 0) {
+        previous = temp;
+        temp = temp->next;
+    }
+
+    if (!temp) return ERROR_NOT_FOUND;
+
+    if (!previous)
+        *head = temp->next;
+    else
+        previous->next = temp->next;
+
+    free(temp);
+    return SUCCESS;
+}
+
+// Oslobađanje memorije liste
+int freeList(Position* head) {
+    if (!head) return ERROR_NOT_FOUND;
+
+    Position temp;
+    while (*head) {
+        temp = *head;
+        *head = (*head)->next;
+        free(temp);
+    }
+    return SUCCESS;
 }
 
 int main() {
-	Osoba* head = NULL;
-	int izbor;
-	char ime[50], prezime[50], buffer[100];
-	int godina_rodjenja;
+    Position head = NULL;
+    int choice = -1;
+    char firstName[MAX_LENGTH] = {0}, lastName[MAX_LENGTH] = {0}, buffer[256];
+    int birthYear = 0;
 
-	do {
-		printf("\n1. Dodaj na pocetak\n2. Ispisi listu\n3. Dodaj na kraj\n4. Pronadji po prezimenu\n5. Obrisi po prezimenu\n0. Izlaz\nIzbor: ");
-		fgets(buffer, sizeof(buffer), stdin);
-		sscanf(buffer, "%d", &izbor);
+    do {
+        printf("\n--- MENI ---\n");
+        printf("1. Dodaj na pocetak\n");
+        printf("2. Dodaj na kraj\n");
+        printf("3. Ispisi listu\n");
+        printf("4. Pronadji po prezimenu\n");
+        printf("5. Obrisi po prezimenu\n");
+        printf("0. Izlaz\n");
+        printf("Izbor: ");
 
-		switch (izbor) {
-		case 1:
-			printf("Unesite ime, prezime i god: ");
-			fgets(buffer, sizeof(buffer), stdin);
-			sscanf(buffer, "%s %s %d", ime, prezime, &godina_rodjenja);
-			dodajNaPocetak(&head, ime, prezime, godina_rodjenja);
-			break;
-		case 2:
-			ispisiListu(head);
-			break;
-		case 3:
-			printf("Unesite ime, prezime i god: ");
-			fgets(buffer, sizeof(buffer), stdin);
-			sscanf(buffer, "%s %s %d", ime, prezime, &godina_rodjenja);
-			dodajNaKraj(&head, ime, prezime, godina_rodjenja);
-			break;
-		case 4: {
-			printf("Unesite prezime: ");
-			fgets(prezime, sizeof(prezime), stdin);
-			prezime[strcspn(prezime, "\n")] = 0;
-			Osoba* pronadjena = pronadjiPoPrezimenu(head, prezime);
-			if (pronadjena) {
-				printf("Pronadjena osoba: %s %s %d\n", pronadjena->ime, pronadjena->prezime, pronadjena->godina_rodjenja);
-			}
-			else {
-				printf("Osoba s prezimenom %s ne postoji\n", prezime);
-			}
-			break;
-		}
-		case 5:
-			printf("za brisat: ");
-			fgets(prezime, sizeof(prezime), stdin);
-			prezime[strcspn(prezime, "\n")] = 0;
-			brisiOsobu(&head, prezime);
-			break;
-		case 0: break;
-		default: printf("Neispravan izbor\n");
-		}
-	} while (izbor != 0);
+        if (!fgets(buffer, sizeof(buffer), stdin)) continue;
+        if (sscanf(buffer, "%d", &choice) != 1) continue;
 
-	while (head) {
-		Osoba* temp = head;
-		head = head->next;
-		free(temp);
-	}
+        switch (choice) {
+        case 1:
+            printf("Unesite ime, prezime i godinu rodjenja:\n> ");
+            if (!fgets(buffer, sizeof(buffer), stdin)) break;
+            if (sscanf(buffer, "%49s %49s %d", firstName, lastName, &birthYear) != 3) break;
+            if (addToStart(&head, firstName, lastName, birthYear) != SUCCESS)
+                printf("Nekaj ti nece.\n");
+            break;
 
-	return 0;
+        case 2:
+            printf("Unesite ime, prezime i godinu rodjenja:\n> ");
+            if (!fgets(buffer, sizeof(buffer), stdin)) break;
+            if (sscanf(buffer, "%49s %49s %d", firstName, lastName, &birthYear) != 3) break;
+            if (addToEnd(&head, firstName, lastName, birthYear) != SUCCESS)
+                printf("Nekaj ti nece.\n");
+            break;
+
+        case 3:
+            printList(head);
+            break;
+
+        case 4:
+            printf("Unesite prezime osobe za pretragu:\n> ");
+            if (!fgets(lastName, sizeof(lastName), stdin)) break;
+            lastName[strcspn(lastName, "\n")] = 0;
+            {
+                Position found = findByLastName(head, lastName);
+                if (found)
+                    printf("Pronadjena osoba: %s %s, %d\n", found->firstName, found->lastName, found->birthYear);
+                else
+                    printf("Osoba s prezimenom '%s' nije pronadena.\n", lastName);
+            }
+            break;
+
+        case 5:
+            printf("Unesite prezime osobe za brisanje:\n> ");
+            if (!fgets(lastName, sizeof(lastName), stdin)) break;
+            lastName[strcspn(lastName, "\n")] = 0;
+            if (deletePerson(&head, lastName) == SUCCESS)
+                printf("Osoba s prezimenom '%s' je izbrisana.\n", lastName);
+            else
+                printf("Osoba s prezimenom '%s' nije pronadena.\n", lastName);
+            break;
+
+        case 0:
+            printf("Adieu.\n");
+            break;
+
+        default:
+            printf("Nekaj ti nece.\n");
+        }
+
+    } while (choice != 0);
+
+    freeList(&head);
+    return 0;
 }
